@@ -1,0 +1,161 @@
+介绍
+这个模拟器使用简化的的汇编语法（基于NASM），模拟一个x86型CPU。 
+
+模拟器包含一个8位CPU和256字节的内存。所有指令（代码）和变量（数据）需要能装入内存。为了简化问题，每个指令和操作数都占用1个字节。所以一个MOV指令会占用3字节内存。模拟器提供一个控制台输出，映射的内存地址0xE8到0xFF。内存映射意味着所有写到这段内存的内容，控制台上都是可见的。
+
+语法
+语法和大多汇编语言类似。所有指令都在独立的行上。标签是可选的，必须以字母或点（.)开始并以冒号结束。
+
+label: instruction operands     ;Comment
+1
+合法的常数数字格式有：
+
+Decimal: 200
+Decimal: 200d
+Hex: 0xA4
+Octal: 0o48
+Binary: 101b
+
+可以用字符定义一个数字，用字符串定义多个数字。
+
+Character: 'A'
+String: "Hello world!"
+
+操作数可以是4个通用寄存器之一或是栈指针寄存器或是内存地址或是常数。栈指针寄存器只在MOV, ADD, SUB, CMP, INC和DEC指令中用到。模拟器会把标签替换为对应的数字。
+
+General purpose (GP) register: A, B, C, D
+Stack pointer register: SP
+Address using a GP register: [A]
+Address using a GP register and offset: [D-3]
+Address using SP register and offset: [SP+2]
+Address using a constant: [100]
+Address using a label: label
+Constant: Any number between 0..255 (8bit unsigned)
+Offset for indirect addressing: Integer bewteen -16..+15 (sign is mandatory)
+
+MOV － 拷贝值
+把一个值从src拷贝到dest。MOV是唯一可以直接修改内存的指令。SP可以作为MOV指令的操作数。
+
+MOV reg, reg
+MOV reg, address
+MOV reg, constant
+MOV address, reg
+MOV address, constant
+
+DB - 变量
+定义一个变量。一个变量可以是一个数字，字符，或者字符串。
+
+DB constant
+
+数学操作
+加和减
+把两个数加起来或是相减。这个操作会修改进位和零标志。SP可以用作操作数。
+
+ADD reg, reg
+ADD reg, address
+ADD reg, constant
+SUB reg, reg
+SUB reg, address
+SUB reg, constant
+
+加1和减1
+寄存器加1或减1。这个操作会修改进位和零标志。SP可以用于INC和DEC的操作数
+
+INC reg
+DEC reg
+
+乘法和除法
+这个操作会修改进位和零标志。
+
+MUL reg
+MUL address
+MUL constant
+DIV reg
+DIV address
+DIV constant
+
+逻辑指令
+支持下面的逻辑指令：AND, OR, XOR, NOT。这个操作会修改进位和零标志。
+
+AND reg, reg
+AND reg, address
+AND reg, constant
+OR reg, reg
+OR reg, address
+OR reg, constant
+XOR reg, reg
+XOR reg, address
+XOR reg, constant
+NOT reg
+
+移位指令
+支持下面的指令： SHL/SAL 和SHR/SAR。因为这个模拟器只支持无符号数，所以SHR和SAR的结果是一样的。这个操作会修改进位和零标志。
+
+SHL reg, reg
+SHL reg, address
+SHL reg, constant
+SHR reg, reg
+SHR reg, address
+SHR reg, constant
+
+CMP－比较
+比较两个值，如果相等的话，把零标志设为true。SP可以用作操作数。在条件跳转前使用这条指令。
+
+CMP reg, reg
+CMP reg, address
+CMP reg, constant
+
+跳转
+JMP－无条件跳转
+让指令指针做一个无条件跳转到指定地址
+
+JMP address
+
+条件跳转
+让指令指针做一个有条件的跳转到指定地址。查看下面表里的具体条件。
+
+Instruction	Description	Condition	Alternatives
+JC	Jump if carry	Carry=TRUE	JB,JNAE
+JNC	Jump if no carry	Carry=FALSE	JNE,JAE
+JZ	Jump if zero	Zero=TRUE	JB,JE
+JNZ	Jump if no zero	Zero=FALSE	JNE
+JA	>	Carry=FALSE && Zero=FALSE	JNBE
+JNBE	not <=	Carry=FALSE && Zero=FALSE	JA
+JAE	>=	Carry=FALSE	JNC,JNB
+JNB	not <	Carry=FALSE	JNC,JAE
+JB	<	Carry=TRUE	JC,JNAE
+JNAE	not >=	Carry=TRUE	JC,JB
+JBE	<=	C=TRUE or Z=TRUE	JNA
+JNA	not >	C=TRUE or Z=TRUE	JBE
+JE	=	Z=TRUE	JB,JZ
+JNE	!=	Z=FALSE	JNZ
+
+
+CALL - 函数调用
+Call可以用来跳到子程序（函数）。把下条指令的地址压入栈，并且跳到指定地址
+
+CALL address
+
+RET - 退出子程序
+退出子程序，把先前压到栈里的返回地址弹出。
+
+RET
+
+栈操作
+PUSH - 压栈
+把一个值压入栈。栈向下增长，当前位置保存在栈指针寄存器SP中。这条指令会把SP减1。
+
+PUSH reg
+PUSH address
+PUSH constant
+
+POP - 弹栈
+把值从栈里弹出并放入一个寄存器。这条指令会把SP加1。
+
+POP reg
+
+其他指令
+HLT － CPU停止
+停止处理器的操作。在重新开始前按Reset按钮来重置IP
+
+HLT
